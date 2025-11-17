@@ -1,8 +1,13 @@
 import os
-from fastapi import FastAPI
+from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
+from pydantic import BaseModel
+from typing import List, Optional
 
-app = FastAPI()
+from database import create_document
+from schemas import Lead
+
+app = FastAPI(title="Christmas 3D Shop API", version="1.0.0")
 
 app.add_middleware(
     CORSMiddleware,
@@ -14,7 +19,7 @@ app.add_middleware(
 
 @app.get("/")
 def read_root():
-    return {"message": "Hello from FastAPI Backend!"}
+    return {"message": "Christmas 3D Shop Backend is running"}
 
 @app.get("/api/hello")
 def hello():
@@ -63,6 +68,23 @@ def test_database():
     response["database_name"] = "✅ Set" if os.getenv("DATABASE_NAME") else "❌ Not Set"
     
     return response
+
+# ----- Leads endpoint for contact capture -----
+class LeadIn(BaseModel):
+    name: Optional[str] = None
+    email: str
+    phone: Optional[str] = None
+    message: Optional[str] = None
+
+@app.post("/api/leads")
+def create_lead(lead: LeadIn):
+    try:
+        # Validate with schema and store
+        lead_doc = Lead(**lead.model_dump())
+        inserted_id = create_document("lead", lead_doc)
+        return {"status": "ok", "id": inserted_id}
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=str(e))
 
 
 if __name__ == "__main__":
